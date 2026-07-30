@@ -23,7 +23,7 @@ named by the course catalog but absent from the source remains documented in
 
 The initial asset snapshot was curated from
 [`anderson-webops/static.classes.jacobdanderson.net`](https://github.com/anderson-webops/static.classes.jacobdanderson.net)
-at commit `87e805805b70b76f714b52f5bf56bfe19966956c`.
+at commit `87e8058b1bf24ef0c0bd7e513a6504d8b7a46422`.
 
 This is an independent downstream repository rather than a GitHub fork because
 the source repository already belongs to the same GitHub organization. The
@@ -49,5 +49,21 @@ Deploy the verified repository checkout as the document root for
 `static.cs.avasan.org`. Do not add a path prefix: course URLs use
 `https://static.cs.avasan.org/<filename>`. Keep byte-range requests enabled for
 MP4 and ZIP downloads, and serve `robots.txt` from the root.
+
+The version-controlled
+[`deploy/nginx/static.cs.avasan.org-assets.conf`](./deploy/nginx/static.cs.avasan.org-assets.conf)
+is designed to be included by the existing HTTPS Nginx virtual host. Follow
+[`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md) for atomic release preparation,
+Nginx validation, rollback, and the external post-deploy gate.
+
+After deployment, verify all 105 public asset paths and representative ZIP,
+GIF, and MP4 byte ranges from outside the home network:
+
+```bash
+./scripts/verify-deployment.sh
+```
+
+The manual **Post-deploy verification** GitHub Actions workflow performs the
+same check from an external runner without downloading Git LFS objects.
 
 There is no application build or package manager in this repository.

@@ -40,6 +40,7 @@ while IFS= read -r path; do
   fi
 done < <(asset_paths)
 
+chmod 0644 "${temporary_manifest}"
 mv "${temporary_manifest}" "${manifest_path}"
 trap - EXIT
 

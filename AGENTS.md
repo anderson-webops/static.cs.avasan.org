@@ -22,8 +22,12 @@ upstream asset repository.
   `./scripts/verify-required-assets.sh` before committing.
 - Regenerate checksums with `./scripts/build-asset-manifest.sh` only after an
   intentional asset change, then inspect the manifest diff.
+- Keep the Nginx include and `docs/DEPLOYMENT.md` aligned. The public host must
+  expose only root-level manifest assets and `robots.txt`, with exact MIME
+  types, byte ranges, restricted CORS, and no directory or dotfile access.
 - Commit and push each coherent, validated change set.
 - Use lowercase annotated semantic-version tags for deployable asset snapshots.
   Publish a GitHub release only for a real delivery milestone.
 - After deployment, validate every manifest path from outside the home network;
-  local NAT hairpin checks can be unreliable.
+  local NAT hairpin checks can be unreliable. Use
+  `./scripts/verify-deployment.sh` or the manual external-runner workflow.

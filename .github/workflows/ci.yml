@@ -6,9 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   verify-assets:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
         with:
@@ -17,8 +21,16 @@ jobs:
       - name: Install Git LFS hooks
         run: git lfs install
 
+      - name: Validate shell syntax
+        run: bash -n scripts/*.sh
+
       - name: Verify LFS checkout
         run: ./scripts/verify-lfs-checkout.sh
 
       - name: Verify curated asset contract
         run: ./scripts/verify-required-assets.sh
+
+      - name: Verify reproducible asset manifest
+        run: |
+          ./scripts/build-asset-manifest.sh
+          git diff --exit-code -- asset-manifest.sha256

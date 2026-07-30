@@ -1,0 +1,41 @@
+name: Post-deploy verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: HTTPS origin to verify
+        required: true
+        default: https://static.cs.avasan.org
+        type: string
+      concurrency:
+        description: Parallel manifest checks (1-32)
+        required: true
+        default: "8"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify-public-host:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GIT_LFS_SKIP_SMUDGE: "1"
+
+    steps:
+      - name: Check out verifier without LFS objects
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          lfs: false
+
+      - name: Validate verifier syntax
+        run: bash -n scripts/verify-deployment.sh
+
+      - name: Verify public deployment
+        env:
+          ASSET_BASE_URL: ${{ inputs.base_url }}
+          VERIFY_CONCURRENCY: ${{ inputs.concurrency }}
+        run: ./scripts/verify-deployment.sh
