@@ -4,7 +4,10 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: ./scripts/verify-deployment.sh [--base-url HTTPS_ORIGIN] [--concurrency N]
+Usage: ./scripts/verify-deployment.sh \
+  --expected-version MAJOR.MINOR.PATCH \
+  --expected-revision FULL_COMMIT_ID \
+  [--base-url HTTPS_ORIGIN] [--concurrency N]
 
 Validate the public static host against asset-manifest.sha256 without reading
 or downloading local Git LFS assets.
@@ -12,6 +15,8 @@ or downloading local Git LFS assets.
 Environment overrides:
   ASSET_BASE_URL          Default: https://static.cs.avasan.org
   VERIFY_CONCURRENCY      Default: 8
+  EXPECTED_VERSION        Required if --expected-version is omitted
+  EXPECTED_REVISION       Required if --expected-revision is omitted
   EXPECTED_CORS_ORIGIN    Default: https://cs.avasan.org
   CURL_CONNECT_TIMEOUT    Default: 10 seconds
   CURL_MAX_TIME           Default: 30 seconds
@@ -23,6 +28,8 @@ concurrency="${VERIFY_CONCURRENCY:-8}"
 expected_cors_origin="${EXPECTED_CORS_ORIGIN:-https://cs.avasan.org}"
 connect_timeout="${CURL_CONNECT_TIMEOUT:-10}"
 max_time="${CURL_MAX_TIME:-30}"
+expected_version="${EXPECTED_VERSION:-}"
+expected_revision="${EXPECTED_REVISION:-}"
 
 while [[ "$#" -gt 0 ]]; do
   case "$1" in
@@ -40,6 +47,22 @@ while [[ "$#" -gt 0 ]]; do
         exit 2
       }
       concurrency="$2"
+      shift 2
+      ;;
+    --expected-version)
+      [[ "$#" -ge 2 ]] || {
+        echo "--expected-version requires a value." >&2
+        exit 2
+      }
+      expected_version="$2"
+      shift 2
+      ;;
+    --expected-revision)
+      [[ "$#" -ge 2 ]] || {
+        echo "--expected-revision requires a value." >&2
+        exit 2
+      }
+      expected_revision="$2"
       shift 2
       ;;
     --help|-h)
@@ -73,7 +96,17 @@ if [[ ! "${connect_timeout}" =~ ^[1-9][0-9]*$ ]] ||
   exit 2
 fi
 
-for required_command in awk cat curl dd git grep head mktemp sed sort tr uniq wc; do
+if [[ ! "${expected_version}" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+  echo "Expected version must be an exact MAJOR.MINOR.PATCH value." >&2
+  exit 2
+fi
+
+if [[ ! "${expected_revision}" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "Expected revision must be a full lowercase 40-character Git commit ID." >&2
+  exit 2
+fi
+
+for required_command in awk cat cmp curl dd git grep head mktemp sed sort tr uniq wc; do
   if ! command -v "${required_command}" >/dev/null 2>&1; then
     echo "Missing required command: ${required_command}" >&2
     exit 1
@@ -193,6 +226,70 @@ curl_common=(
   --proto '=https'
   --tlsv1.2
 )
+
+verify_release_identity() {
+  local headers="${temporary_dir}/release.headers"
+  local body="${temporary_dir}/release.body"
+  local expected_body="${temporary_dir}/release.expected"
+  local stderr_file="${temporary_dir}/release.stderr"
+  local status
+
+  if ! status="$(
+    curl "${curl_common[@]}" --dump-header "${headers}" --output "${body}" \
+      --write-out '%{http_code}' "${base_url}/release.json" 2>"${stderr_file}"
+  )"; then
+    echo "Release identity request failed: $(tr '\n' ' ' < "${stderr_file}")" >&2
+    return 1
+  fi
+
+  if [[ "${status}" != "200" ]]; then
+    echo "Expected HTTP 200 for /release.json; received ${status}." >&2
+    return 1
+  fi
+
+  if [[ "$(normalized_content_type "${headers}")" != "application/json" ]]; then
+    echo "The deployed release.json does not use application/json." >&2
+    return 1
+  fi
+
+  local cache_control
+  cache_control="$(
+    header_value "${headers}" "Cache-Control" | tr '[:upper:]' '[:lower:]'
+  )"
+
+  if [[ "${cache_control}" != *"no-store"* ]]; then
+    echo "The deployed release.json must use Cache-Control: no-store." >&2
+    return 1
+  fi
+
+  if [[ -n "$(header_value "${headers}" "Set-Cookie")" ]]; then
+    echo "The deployed release.json must not set a cookie." >&2
+    return 1
+  fi
+
+  printf '{"version":"%s","revision":"%s"}\n' \
+    "${expected_version}" "${expected_revision}" > "${expected_body}"
+
+  if ! cmp -s "${body}" "${expected_body}"; then
+    echo "The deployed release.json does not exactly match the expected release identity." >&2
+    return 1
+  fi
+
+  local hsts
+  hsts="$(
+    header_value "${headers}" "Strict-Transport-Security" |
+      tr '[:upper:]' '[:lower:]'
+  )"
+
+  if [[ "${hsts}" != *"max-age=31536000"* ]]; then
+    echo "Missing one-year Strict-Transport-Security for /release.json." >&2
+    return 1
+  fi
+
+  echo "PASS release ${expected_version} ${expected_revision}"
+}
+
+verify_release_identity
 
 verify_asset_head() {
   local index="$1"
@@ -490,4 +587,4 @@ verify_small_response / 404
 verify_small_response /asset-manifest.sha256 404
 verify_small_response /.git/config 404
 
-echo "Verified all 105 manifest URLs, three representative ranges, robots.txt, and private paths."
+echo "Verified exact release identity, all 105 manifest URLs, three representative ranges, robots.txt, and private paths."

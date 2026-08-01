@@ -18,6 +18,25 @@ if [[ ! -f "${manifest}" ]]; then
   exit 1
 fi
 
+if [[ ! -f VERSION ]]; then
+  echo "Missing VERSION." >&2
+  exit 1
+fi
+
+release_version="$(cat VERSION)"
+
+if [[ ! "${release_version}" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] ||
+  ! cmp -s VERSION <(printf '%s\n' "${release_version}"); then
+  echo "VERSION must contain one canonical MAJOR.MINOR.PATCH value and a newline." >&2
+  exit 1
+fi
+
+if [[ -e release.json || -L release.json ]] ||
+  git ls-files --error-unmatch release.json >/dev/null 2>&1; then
+  echo "release.json must be generated only inside an external release directory." >&2
+  exit 1
+fi
+
 asset_paths() {
   find . -maxdepth 1 -type f \
     \( -name 'ps*.gif' -o -name 'ps*.mp4' -o -name 'pyg_*.mp4' -o -name 'assets.zip' \) \
@@ -89,4 +108,4 @@ if [[ "$(cat robots.txt 2>/dev/null || true)" != $'User-agent: *\nDisallow: /' ]
   exit 1
 fi
 
-echo "Verified 105 curated assets: 77 Python files, 27 PyGames videos, and assets.zip."
+echo "Verified release source layout and 105 curated assets: 77 Python files, 27 PyGames videos, and assets.zip."

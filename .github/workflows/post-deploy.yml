@@ -13,6 +13,14 @@ on:
         required: true
         default: "8"
         type: string
+      expected_version:
+        description: Exact deployed semantic version, such as 1.0.2
+        required: true
+        type: string
+      expected_revision:
+        description: Full lowercase Git commit ID selected for deployment
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -28,8 +36,20 @@ jobs:
       - name: Check out verifier without LFS objects
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 1
+          fetch-depth: 0
           lfs: false
+          ref: "v${{ inputs.expected_version }}"
+
+      - name: Verify exact tagged source
+        env:
+          EXPECTED_REVISION: ${{ inputs.expected_revision }}
+          EXPECTED_VERSION: ${{ inputs.expected_version }}
+        run: |
+          git fetch --force --no-tags origin main:refs/remotes/origin/main
+          test "$(git rev-parse refs/remotes/origin/main^{commit})" = \
+            "${EXPECTED_REVISION}"
+          ./scripts/verify-release-source.sh \
+            "${EXPECTED_VERSION}" "${EXPECTED_REVISION}"
 
       - name: Validate verifier syntax
         run: bash -n scripts/verify-deployment.sh
@@ -37,5 +57,7 @@ jobs:
       - name: Verify public deployment
         env:
           ASSET_BASE_URL: ${{ inputs.base_url }}
+          EXPECTED_REVISION: ${{ inputs.expected_revision }}
+          EXPECTED_VERSION: ${{ inputs.expected_version }}
           VERIFY_CONCURRENCY: ${{ inputs.concurrency }}
         run: ./scripts/verify-deployment.sh

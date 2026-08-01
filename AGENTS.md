@@ -13,6 +13,9 @@ upstream asset repository.
 - Track ZIP, GIF, and MP4 files with Git LFS.
 - Treat `asset-manifest.sha256` as the reviewed inventory of deployable binary
   assets.
+- Keep `VERSION` aligned with the one exact annotated release tag. Generate
+  `release.json` only inside the commit-specific release directory; never add
+  it to the binary manifest or commit it to the repository.
 - Never create fake placeholders for source media that does not exist. Leave
   those paths documented as pending in `PENDING.md` and in the course UI.
 
@@ -23,8 +26,9 @@ upstream asset repository.
 - Regenerate checksums with `./scripts/build-asset-manifest.sh` only after an
   intentional asset change, then inspect the manifest diff.
 - Keep the Nginx include and `docs/DEPLOYMENT.md` aligned. The public host must
-  expose only root-level manifest assets and `robots.txt`, with exact MIME
-  types, byte ranges, restricted CORS, and no directory or dotfile access.
+  expose only root-level manifest assets, `robots.txt`, and the generated exact
+  `release.json`, with exact MIME types, byte ranges, restricted CORS, and no
+  directory or dotfile access. The host root remains a `404`.
 - Commit and push each coherent, validated change set.
 - Use lowercase annotated semantic-version tags for deployable asset snapshots.
   Publish a GitHub release only for a real delivery milestone.

@@ -12,6 +12,10 @@ grade-school computer science course site.
 The 105 binary assets keep their original root-level filenames because the
 course content links to those exact paths.
 
+`/release.json` is generated only while preparing a tagged atomic release. It
+contains the release's semantic version and full source commit, is not a course
+asset, and is deliberately absent from `asset-manifest.sha256` and Git.
+
 ## Deliberately excluded
 
 This repository does not mirror the full source library. It excludes unrelated
@@ -43,12 +47,19 @@ git lfs checkout
 Run `./scripts/build-asset-manifest.sh` only after an intentional asset update,
 then inspect the manifest diff before committing.
 
+`VERSION` is the source release version. A deployable checkout must be clean and
+named by the one exact annotated `vMAJOR.MINOR.PATCH` tag matching that file.
+Release preparation refuses lightweight tags, shortened or uppercase revisions,
+mismatched versions, and untracked source files. CI and the external gate also
+require that release revision to equal `origin/main`.
+
 ## Hosting contract
 
-Deploy the verified repository checkout as the document root for
+Deploy the verified, tagged repository checkout as the document root for
 `static.cs.avasan.org`. Do not add a path prefix: course URLs use
 `https://static.cs.avasan.org/<filename>`. Keep byte-range requests enabled for
-MP4 and ZIP downloads, and serve `robots.txt` from the root.
+MP4 and ZIP downloads, serve `robots.txt` from the root, serve the generated
+identity at `/release.json`, and keep `/` unavailable with `404`.
 
 The version-controlled
 [`deploy/nginx/static.cs.avasan.org-assets.conf`](./deploy/nginx/static.cs.avasan.org-assets.conf)
@@ -56,11 +67,13 @@ is designed to be included by the existing HTTPS Nginx virtual host. Follow
 [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md) for atomic release preparation,
 Nginx validation, rollback, and the external post-deploy gate.
 
-After deployment, verify all 105 public asset paths and representative ZIP,
-GIF, and MP4 byte ranges from outside the home network:
+After deployment, verify the exact release identity, all 105 public asset paths,
+and representative ZIP, GIF, and MP4 byte ranges from outside the home network:
 
 ```bash
-./scripts/verify-deployment.sh
+./scripts/verify-deployment.sh \
+  --expected-version 1.0.2 \
+  --expected-revision <full-lowercase-40-character-commit>
 ```
 
 The manual **Post-deploy verification** GitHub Actions workflow performs the
