@@ -77,7 +77,7 @@ The second verification checks all local files against
 Resolve the release inputs from the release record and verify them explicitly:
 
 ```bash
-static_expected_version="1.0.2"
+static_expected_version="1.0.3"
 static_expected_revision="<full-lowercase-40-character-commit>"
 ./scripts/verify-release-source.sh \
   "${static_expected_version}" "${static_expected_revision}"

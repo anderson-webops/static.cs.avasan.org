@@ -72,7 +72,7 @@ and representative ZIP, GIF, and MP4 byte ranges from outside the home network:
 
 ```bash
 ./scripts/verify-deployment.sh \
-  --expected-version 1.0.2 \
+  --expected-version 1.0.3 \
   --expected-revision <full-lowercase-40-character-commit>
 ```
 
