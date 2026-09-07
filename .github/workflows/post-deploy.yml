@@ -38,6 +38,7 @@ jobs:
         with:
           fetch-depth: 0
           lfs: false
+          persist-credentials: false
           ref: "v${{ inputs.expected_version }}"
 
       - name: Verify exact tagged source
@@ -46,7 +47,7 @@ jobs:
           EXPECTED_VERSION: ${{ inputs.expected_version }}
         run: |
           git fetch --force --no-tags origin main:refs/remotes/origin/main
-          test "$(git rev-parse refs/remotes/origin/main^{commit})" = \
+          test "$(git rev-parse 'refs/remotes/origin/main^{commit}')" = \
             "${EXPECTED_REVISION}"
           ./scripts/verify-release-source.sh \
             "${EXPECTED_VERSION}" "${EXPECTED_REVISION}"

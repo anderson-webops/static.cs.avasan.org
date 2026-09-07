@@ -18,6 +18,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           lfs: true
+          persist-credentials: false
 
       - name: Install Git LFS hooks
         run: git lfs install
@@ -45,7 +46,7 @@ jobs:
           git fetch --force --no-tags origin main:refs/remotes/origin/main
           expected_version="${GITHUB_REF_NAME#v}"
           expected_revision="$(git rev-parse HEAD)"
-          test "$(git rev-parse refs/remotes/origin/main^{commit})" = \
+          test "$(git rev-parse 'refs/remotes/origin/main^{commit}')" = \
             "${expected_revision}"
           ./scripts/verify-release-source.sh \
             "${expected_version}" "${expected_revision}"
